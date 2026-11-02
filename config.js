@@ -1,1 +1,2 @@
 window.CFG={url:"https://abcdefghijklmnop.supabase.co",key:"sb_publishable_yzklhGNne-x8GTHJbcnvzw_XJCJgbHr"};
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzaXJsYmFvbmx2c3JzcHhpd2dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MjMxNjgsImV4cCI6MjEwOTE5OTE2OH0.EY--zEt9uCDpB1SfZhjrJbQV2_B7DP3Kukh3k_XArSk
