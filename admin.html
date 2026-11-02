@@ -1,0 +1,50 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Al-falakiy Admin</title>
+<style>*{box-sizing:border-box;margin:0}body{font-family:Arial,sans-serif;background:#faf6ea;color:#1d2b25;padding:16px}
+.w{max-width:900px;margin:auto}h1{color:#0f4d3a}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#0a3628;padding:12px;border-radius:12px;margin-bottom:16px}.bar h1{color:#c9a24b;flex:1;font-size:1.2rem}
+button,.b{background:#c9a24b;color:#0a3628;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;text-decoration:none;font-size:.9rem}button.g{background:transparent;color:#0f4d3a;border:1px solid #c9a24b}.bar button.g{color:#c9a24b}
+.r{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #c9a24b;border-radius:10px;padding:10px;margin-bottom:10px}.r img,.r .ph{width:64px;height:80px;object-fit:cover;border-radius:6px;background:#e4d7a8}.r .t{flex:1}.r .a{display:flex;gap:6px;flex-wrap:wrap}
+#m{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:14px}.box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:500px;max-height:92vh;overflow:auto}
+label{display:block;margin:10px 0;font-size:.9rem}input:not([type=checkbox]),textarea{width:100%;padding:8px;border:1px solid #c9a24b;border-radius:8px;font:inherit}.pv{max-width:140px;display:block;margin:6px 0;border-radius:8px}.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.e{color:#b00020;margin-top:8px}</style></head><body><div class="w" id="app"></div><div id="m"></div>
+<script src="config.js"></script><script src="seed.js"></script>
+<script>
+const C=window.CFG||{},$=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let tok=sessionStorage.getItem("tk")||"",P=[],ST={},ed=null,img="";
+const H=x=>({apikey:C.key,Authorization:"Bearer "+(tok||C.key),...x});
+async function api(p,o={}){const r=await fetch(C.url+p,{...o,headers:H({"Content-Type":"application/json",...(o.headers||{})})});
+ if(r.status==401){out("Session expired. Please log in again.");throw new Error("Session expired")}
+ if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null}
+function out(m){tok="";sessionStorage.removeItem("tk");login(m||"")}
+function login(m){if(!C.url||C.url.includes("YOUR-")){$("app").innerHTML="<h1>Setup needed</h1><p>Open config.js and paste your Supabase URL and anon key.</p>";return}
+ $("app").innerHTML=`<div class="box" style="margin:40px auto"><h1>Al-falakiy Admin</h1><label>Email<input id="em" type="email"></label><label>Password<input id="pw" type="password"></label><button id="lg">Log in</button><div class="e" id="er">${esc(m)}</div></div>`;
+ $("lg").onclick=async()=>{const r=await fetch(C.url+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:C.key,"Content-Type":"application/json"},body:JSON.stringify({email:$("em").value.trim(),password:$("pw").value})});const j=await r.json();
+  if(!r.ok){$("er").textContent=j.error_description||j.msg||"Login failed";return}tok=j.access_token;sessionStorage.setItem("tk",tok);start()}}
+async function start(){try{P=await api("/rest/v1/products?select=*&order=sort.asc,id.asc");const s=await api("/rest/v1/site?id=eq.1&select=data");ST=(s&&s[0]&&s[0].data)||{};view()}catch(e){if(tok)$("app").innerHTML="<p class='e'>"+esc(e.message)+"</p>"}}
+function view(){$("app").innerHTML=`<div class="bar"><h1>Al-falakiy Admin</h1><a class="b" href="index.html" target="_blank">View store</a><button id="bs">Site settings</button><button id="ba">+ Add product</button><button class="g" id="bo">Log out</button></div>
+${P.length?"":`<p style="margin-bottom:12px">No products yet. <button id="bi">Import my starter products</button></p>`}
+${P.map((p,i)=>`<div class="r">${p.img?`<img src="${esc(p.img)}">`:`<div class="ph"></div>`}<div class="t"><b>${esc(p.name)}</b>${p.sold?" (sold out)":""}<br><small>${esc(p.cat)} · ${p.price?Number(p.price).toLocaleString():"no price"}</small></div><div class="a"><button data-a="e" data-i="${i}">Edit</button><button class="g" data-a="u" data-i="${i}">↑</button><button class="g" data-a="d" data-i="${i}">↓</button><button class="g" data-a="x" data-i="${i}">Delete</button></div></div>`).join("")}`;
+ $("bo").onclick=()=>out();$("ba").onclick=()=>pform(null);$("bs").onclick=sform;if($("bi"))$("bi").onclick=imp}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!b)return;const i=+b.dataset.i,a=b.dataset.a;
+ try{if(a=="e")pform(P[i]);else if(a=="x"){if(confirm("Delete "+P[i].name+"?")){await api("/rest/v1/products?id=eq."+P[i].id,{method:"DELETE"});await start()}}
+ else{const j=a=="u"?i-1:i+1;if(j<0||j>=P.length)return;[P[i],P[j]]=[P[j],P[i]];await api("/rest/v1/products?on_conflict=id",{method:"POST",headers:{Prefer:"resolution=merge-duplicates"},body:JSON.stringify(P.map((p,k)=>({id:p.id,name:p.name,sort:k})))});await start()}}catch(x){alert(x.message)}});
+const L=(l,id,v,t)=>`<label>${l}${t=="area"?`<textarea id="${id}" rows="3">${esc(v)}</textarea>`:`<input id="${id}" type="${t||"text"}" value="${esc(v)}">`}</label>`;
+function modal(h,ok){const m=$("m");m.style.display="flex";m.innerHTML=`<div class="box">${h}<div class="row"><button class="g" id="mc">Cancel</button><button id="mo">Save</button></div><div class="e" id="me"></div></div>`;$("mc").onclick=()=>m.style.display="none";$("mo").onclick=async()=>{$("mo").disabled=true;try{if(await ok()!==false)m.style.display="none"}catch(x){$("me").textContent=x.message}$("mo").disabled=false}}
+async function shrink(f){const b=await createImageBitmap(f),r=Math.min(1,900/Math.max(b.width,b.height)),c=document.createElement("canvas");c.width=Math.round(b.width*r);c.height=Math.round(b.height*r);c.getContext("2d").drawImage(b,0,0,c.width,c.height);return new Promise(res=>c.toBlob(res,"image/jpeg",.82))}
+async function up(blob){const n=crypto.randomUUID()+".jpg";const r=await fetch(C.url+"/storage/v1/object/products/"+n,{method:"POST",headers:H({"Content-Type":"image/jpeg"}),body:blob});if(!r.ok)throw new Error(await r.text());return C.url+"/storage/v1/object/public/products/"+n}
+function pform(p){ed=p;img=p?p.img:"";const q=p||{name:"",cat:"Jalab",descr:"",price:"",sizes:"M, L, XL, XXL",color:"#0f6b4f",sold:false};
+ modal(`<h1 style="font-size:1.2rem">${p?"Edit":"Add"} product</h1>${L("Name","f_n",q.name)}${L("Category","f_c",q.cat)}${L("Description","f_d",q.descr,"area")}${L("Price (leave empty for Message for price)","f_p",q.price||"","number")}${L("Sizes, comma separated (optional)","f_s",q.sizes||"")}<label>Picture<img class="pv" id="pv" src="${esc(img)}" ${img?"":"hidden"}><input id="f_i" type="file" accept="image/*"></label><small id="us"></small> <button class="g" id="rm" type="button">Remove picture</button>${L("Drawing color if no picture","f_k",q.color||"#0f6b4f","color")}<label><input id="f_x" type="checkbox" ${q.sold?"checked":""}> Sold out</label>`,async()=>{
+  const n=$("f_n").value.trim();if(!n){throw new Error("Please enter a name")}
+  const row={name:n,cat:$("f_c").value.trim()||"Other",descr:$("f_d").value,price:Number($("f_p").value)||0,sizes:$("f_s").value,color:$("f_k").value,sold:$("f_x").checked,img};
+  if(ed)await api("/rest/v1/products?id=eq."+ed.id,{method:"PATCH",body:JSON.stringify(row)});else await api("/rest/v1/products",{method:"POST",body:JSON.stringify({...row,sort:P.length})});await start()});
+ $("f_i").onchange=async e=>{const f=e.target.files[0];if(!f)return;$("us").textContent="Uploading...";try{img=await up(await shrink(f));$("pv").src=img;$("pv").hidden=false;$("us").textContent="Uploaded"}catch(x){$("us").textContent="Upload failed: "+x.message}};
+ $("rm").onclick=()=>{img="";$("pv").hidden=true}}
+const SF=[["brand","Brand name"],["ann","Announcement bar"],["tag","Home banner text","area"],["a1","About Us paragraph 1","area"],["a2","About Us paragraph 2","area"],["wa","WhatsApp number (country code, digits only)"],["cur","Main currency symbol"],["rates","Exchange rates e.g. USD=0.00067, GBP=0.0005"],["email","Email"],["ig","Instagram link"],["tt","TikTok link"],["fb","Facebook link"],["ship","Shipping and returns (one paragraph per line)","area"],["faq","FAQ (one per line: Question | Answer)","area"]];
+async function saveSite(d){await api("/rest/v1/site?on_conflict=id",{method:"POST",headers:{Prefer:"resolution=merge-duplicates"},body:JSON.stringify({id:1,data:d})})}
+function sform(){const base={...(window.SEED||{}),...ST};delete base.products;
+ modal(`<h1 style="font-size:1.2rem">Site settings</h1>`+SF.map(([k,l,t])=>L(l,"s_"+k,k=="rates"?Object.entries(base.rates||{}).map(([a,b])=>a+"="+b).join(", "):base[k]||"",t)).join(""),async()=>{
+  const d={...base};SF.forEach(([k])=>{d[k]=$("s_"+k).value});d.wa=d.wa.replace(/\D/g,"");const r={};d.rates.split(",").forEach(x=>{const[a,b]=x.split("=");if(a&&Number(b)>0)r[a.trim().toUpperCase()]=Number(b)});d.rates=r;await saveSite(d);await start()})}
+async function imp(){if(!confirm("Import the starter products and settings?"))return;try{const S=window.SEED;for(const [i,p] of S.products.entries()){let u=p.img||"";if(u.startsWith("data:"))u=await up(await (await fetch(u)).blob());
+ await api("/rest/v1/products",{method:"POST",body:JSON.stringify({name:p.name,cat:p.cat||"Other",descr:p.desc||"",price:p.price||0,sizes:p.sizes||"",color:p.color||"#0f6b4f",sold:!!p.sold,img:u,sort:i})})}
+ const d={...S};delete d.products;await saveSite(d);await start()}catch(e){alert(e.message)}}
+tok?start():login();
+</script></body></html>
